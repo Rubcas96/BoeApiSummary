@@ -117,7 +117,7 @@ public class BoeService {
             registrarNuevoBoe(textoPuro);
         } else {
             // Obtener el fragmento de texto original del texto puro
-            String fragmentoTextoOriginal = textoPuro.substring(5, 40);
+            String fragmentoTextoOriginal = textoPuro.substring(8, 21);
 
             // Verificar si el fragmento de texto original coincide con el del último Boletín registrado
             if (fragmentoTextoOriginal.equals(ultimoBoe.getContenidoOriginal())) {
@@ -138,7 +138,7 @@ public class BoeService {
         String resumen = resumirConChatGpt(textoPuro);
 
         // Obtener los fragmentos de texto original y resumen
-        String fragmentoTextoOriginal = textoPuro.substring(5, Math.min(textoPuro.length(), 40));
+        String fragmentoTextoOriginal = textoPuro.substring(8,21);
 
 
         // Crear el objeto Boe
@@ -192,11 +192,9 @@ public class BoeService {
 
         // Extraer el texto de todas las etiquetas <p> (párrafos) y <div> (divisiones)
         Element elementosTexto = doc.selectFirst("div.sumario");
+        Element codigoBoe = doc.selectFirst("div.linkSumario");
 
-        //Elements elementosTexto = doc.select(".sumario");
-
-        // Element elementosTexto = doc.getElementById("sec661");
-        String texto = elementosTexto.text();
+        String texto = codigoBoe.text()+elementosTexto.text();
 
         // Limitar la cantidad de texto extraído
         int maxTokens = 16385; // Establecer el límite máximo de tokens permitidos
@@ -254,7 +252,7 @@ public class BoeService {
 
     public void sendUnsubscribedBoeSummaryToUser(Long userId) {
         // Obtener boletines a los que el usuario no está suscrito
-        List<Boe> unsubscribedBoes = boeRepository.findNotSubscribedBoes(userId);
+        List<Boe> unsubscribedBoes = boeRepository.findNotSubscribedBoes2(userId);
 
         // Verificar si se encontraron boletines
         if (!unsubscribedBoes.isEmpty()) {
@@ -280,7 +278,7 @@ public class BoeService {
     private String resumirConChatGpt(String texto) {
         try {
             // Crear la solicitud a la API de OpenAI
-            ChatGptRequest request = new ChatGptRequest(model, "Resume a la mitad lo destacable: "+ texto);
+            ChatGptRequest request = new ChatGptRequest(model, "Resume por apartados indicando el numero de boe arriba y a contiuacion los apartados de: "+ texto);
 
             // Realizar la solicitud a la API de OpenAI
             ChatGptResponse response = template.postForObject(apiUrl, request, ChatGptResponse.class);

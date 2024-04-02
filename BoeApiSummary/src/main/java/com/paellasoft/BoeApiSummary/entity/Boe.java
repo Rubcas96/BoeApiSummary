@@ -17,8 +17,9 @@ public class Boe {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "contenido_original")
-    private String contenidoOriginal;
+    @Column(name = "tituloOriginal")
+    private String tituloOriginal;
+
     @Column(name = "contenido_resumido",columnDefinition = "LONGTEXT")
     private String contenidoResumido;
     @Column(name="fecha_boe")
@@ -42,11 +43,11 @@ public class Boe {
     }
 
     public String getContenidoOriginal() {
-        return contenidoOriginal;
+        return tituloOriginal;
     }
 
     public void setContenidoOriginal(String contenidoOriginal) {
-        this.contenidoOriginal = contenidoOriginal;
+        this.tituloOriginal = contenidoOriginal;
     }
 
     public String getContenidoResumido() {
