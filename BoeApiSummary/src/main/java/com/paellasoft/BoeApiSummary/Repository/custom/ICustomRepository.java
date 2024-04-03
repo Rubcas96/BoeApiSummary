@@ -10,6 +10,6 @@ import java.util.List;
 @NoRepositoryBean
 public interface ICustomRepository<T,ID> {
 
-    List<Boe> findNotSubscribedBoes2(Long userId);
+    List<T> findNotSubscribedBoes2(Long userId);
 
 }

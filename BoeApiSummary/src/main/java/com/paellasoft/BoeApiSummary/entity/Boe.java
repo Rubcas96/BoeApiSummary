@@ -17,7 +17,7 @@ public class Boe {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "tituloOriginal")
+    @Column(name = "titulo_original")
     private String tituloOriginal;
 
     @Column(name = "contenido_resumido",columnDefinition = "LONGTEXT")

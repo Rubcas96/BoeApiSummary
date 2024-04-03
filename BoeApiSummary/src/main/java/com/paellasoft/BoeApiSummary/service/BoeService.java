@@ -62,49 +62,60 @@ public class BoeService {
     @Autowired
     private EmailSender emailSender;
 
-
+    private LocalDate fechaActual = LocalDate.now();
+    private DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+    private String fechaFormateada = fechaActual.format(formatter);
     @Scheduled(cron = "0 * * * * *")
     public String obtenerBoeDelDia() {
 
-        // Obtener la fecha actual
-        LocalDate fechaActual = LocalDate.now();
-        // Formatear la fecha en el formato esperado por la URL del BOE
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
-        String fechaFormateada = fechaActual.format(formatter);
-        // Construir la URL del BOE del día actual
-        String url = "https://www.boe.es/boe/dias/" + fechaFormateada + "/index.php?s=1";
+
+        // Construir la URL del BOE del día actual para las secciones 1 y 3
+        String urlSeccion1 = "https://www.boe.es/boe/dias/" + fechaFormateada + "/index.php?s=1";
+        String urlSeccion3 = "https://www.boe.es/boe/dias/" + fechaFormateada + "/index.php?s=3";
 
         // Crear cliente HTTP
         HttpClient client = HttpClient.newHttpClient();
-        // Crear solicitud HTTP GET para obtener el BOE
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
+        // Crear solicitud HTTP GET para obtener el BOE de la sección 1
+        HttpRequest requestSeccion1 = HttpRequest.newBuilder()
+                .uri(URI.create(urlSeccion1))
+                .build();
+        // Crear solicitud HTTP GET para obtener el BOE de la sección 3
+        HttpRequest requestSeccion3 = HttpRequest.newBuilder()
+                .uri(URI.create(urlSeccion3))
                 .build();
 
         try {
-            // Enviar solicitud y obtener respuesta
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            // Enviar solicitud y obtener respuesta para la sección 1
+            HttpResponse<String> responseSeccion1 = client.send(requestSeccion1, HttpResponse.BodyHandlers.ofString());
 
-            // Verificar si la solicitud fue exitosa (código de estado 200)
-            if (response.statusCode() == 200) {
-                // Extraer el contenido HTML del BOE
-                String boeContent = response.body();
-                String htmlContent = response.body();
+            // Enviar solicitud y obtener respuesta para la sección 3
+            HttpResponse<String> responseSeccion3 = client.send(requestSeccion3, HttpResponse.BodyHandlers.ofString());
 
-                // Procesar HTML para extraer texto puro
-                String textoPuro = extraerTextoPuro(htmlContent);
-                comprobarCambiosEnBoe(textoPuro);
+            // Verificar si la solicitud fue exitosa para la sección 1 (código de estado 200)
+            if (responseSeccion1.statusCode() == 200 && responseSeccion3.statusCode() == 200) {
+                // Extraer el contenido HTML de las secciones 1 y 3 del BOE
+                String boeContentSeccion1 = responseSeccion1.body();
+                String boeContentSeccion3 = responseSeccion3.body();
+
+                // Procesar HTML para extraer texto puro de las secciones 1 y 3
+                String textoPuroSeccion1 = extraerTextoPuro(boeContentSeccion1);
+                String textoPuroSeccion3 = extraerTextoPuro(boeContentSeccion3);
+
+                // Combinar el texto puro de las secciones 1 y 3
+                String textoPuroCompleto = textoPuroSeccion1 + "\n\n" + textoPuroSeccion3;
+
+                // Verificar si hay cambios en el BOE
+                comprobarCambiosEnBoe(textoPuroCompleto);
 
                 // Resumir el texto utilizando la API de OpenAI
 
-                return textoPuro;
+                return textoPuroCompleto;
             } else {
                 // Manejar errores de solicitud HTTP
-                System.out.println("Error al obtener el BOE del día: " + response.statusCode());
+                System.out.println("Error al obtener el BOE del día: Sección 1 - " + responseSeccion1.statusCode() + ", Sección 3 - " + responseSeccion3.statusCode());
             }
         } catch (Exception e) {
             e.printStackTrace();
-
         }
         return "";
     }
@@ -131,7 +142,7 @@ public class BoeService {
     public void registrarNuevoBoe(String textoPuro) {
         // Obtener la fecha actual
         LocalDateTime fechaRegistro = LocalDateTime.now();
-        DateTimeFormatter formateoRegistro = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+        DateTimeFormatter formateoRegistro = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         String fechaBoe = fechaRegistro.format(formateoRegistro);
 
         // Resumir el texto utilizando la API de OpenAI
@@ -164,8 +175,8 @@ public class BoeService {
             if (usuario.isSendNotification()) {
                 String to = usuario.getEmail();
                 String subject = "Nuevo Boletín Oficial disponible";
-                String text = "Estimado " + usuario.getUsername() + ",\n\nSe ha detectado un nuevo Boletín Oficial. Le enviamos el resumen: \n\n"+resumen;
-                emailSender.sendEmail(to, subject, text);
+                String text = "Estimado " + usuario.getUsername() + ",\n\n Para Leer el Boe de hoy en profundidad, acceda a la pagina web:\nhttps://www.boe.es/boe/dias/"+fechaFormateada +"\n\n"+resumen;
+                emailSender.sendEmailWithPdfAttachment(to, subject, text);
 
                 System.out.println("Correo enviado a: " + usuario.getEmail());
             }
@@ -252,7 +263,7 @@ public class BoeService {
 
     public void sendUnsubscribedBoeSummaryToUser(Long userId) {
         // Obtener boletines a los que el usuario no está suscrito
-        List<Boe> unsubscribedBoes = boeRepository.findNotSubscribedBoes2(userId);
+        List<Boe> unsubscribedBoes = boeRepository.findNotSubscribedBoes(userId);
 
         // Verificar si se encontraron boletines
         if (!unsubscribedBoes.isEmpty()) {
@@ -278,7 +289,7 @@ public class BoeService {
     private String resumirConChatGpt(String texto) {
         try {
             // Crear la solicitud a la API de OpenAI
-            ChatGptRequest request = new ChatGptRequest(model, "Resume por apartados indicando el numero de boe arriba y a contiuacion los apartados de: "+ texto);
+            ChatGptRequest request = new ChatGptRequest(model, "Resume por apartados (manteniendo la division entre 1.Disposiciones Generales y 3.Otras Disposiciones )"+ texto);
 
             // Realizar la solicitud a la API de OpenAI
             ChatGptResponse response = template.postForObject(apiUrl, request, ChatGptResponse.class);
