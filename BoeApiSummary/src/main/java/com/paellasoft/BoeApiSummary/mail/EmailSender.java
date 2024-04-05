@@ -1,6 +1,19 @@
 package com.paellasoft.BoeApiSummary.mail;
 
 
+import com.itextpdf.io.font.constants.StandardFonts;
+import com.itextpdf.io.image.ImageDataFactory;
+import com.itextpdf.kernel.colors.Color;
+import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.canvas.draw.SolidLine;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Image;
+import com.itextpdf.layout.element.LineSeparator;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.property.HorizontalAlignment;
+import com.itextpdf.layout.property.TextAlignment;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -41,7 +54,7 @@ public class EmailSender {
         javaMailSender.send(message);
     }
 
-    public void sendEmailWithPdfAttachment(String to, String subject, String text) {
+    public void sendEmailWithPdfAttachment(String to, String subject, String text,String signatureImagePath) {
         try {
             MimeMessage message = javaMailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
@@ -50,13 +63,13 @@ public class EmailSender {
             helper.setSubject(subject);
 
             String title = "Resumen Boletín Oficial del Estado (" + LocalDate.now() + ")";
-            byte[] pdfBytes = createPdfFromText(text, title);
+            byte[] pdfBytes = createPdfFromText(text, title,signatureImagePath);
 
             InputStreamSource pdfResource = new ByteArrayResource(pdfBytes);
 
             helper.setText("Estimado usuario,\n\nSe adjunta el resumen del BOE en formato PDF.\n\nAtentamente,\nEquipo de BoeApiSummary");
 
-            helper.addAttachment("resumen_boe_"+LocalDate.now(), pdfResource, "application/pdf");
+            helper.addAttachment("resumen_boe_"+LocalDate.now()+".pdf", pdfResource, "application/pdf");
 
             javaMailSender.send(message);
         } catch (MessagingException | IOException e) {
@@ -65,80 +78,38 @@ public class EmailSender {
         }
     }
 
-    private byte[] createPdfFromText(String text, String title) throws IOException {
-        try (PDDocument document = new PDDocument()) {
-            // Divide el texto en líneas
-            String[] lines = text.split("\\r?\\n");
+    public byte[] createPdfFromText(String text, String title,String signatureImagePath) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-            // Calcula el número de páginas necesarias
-            int totalPages = (int) Math.ceil((double) lines.length / LINES_PER_PAGE);
+        try (PdfWriter writer = new PdfWriter(outputStream);
+             PdfDocument pdf = new PdfDocument(writer);
+             Document document = new Document(pdf)) {
 
-            for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
-                PDPage page = new PDPage();
-                document.addPage(page);
+            // Añadir título
+            document.add(new Paragraph(title).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD)).setFontSize(18));
 
-                try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
-                    contentStream.setFont(PDType1Font.HELVETICA_BOLD, 18);
-                    contentStream.beginText();
-                    contentStream.newLineAtOffset(50, 750);
-                    contentStream.showText(title);
-                    contentStream.endText();
+            SolidLine line = new SolidLine(1f);
+            LineSeparator ls = new LineSeparator(line);
+            document.add(ls);
+            // Añadir contenido
+            document.add(new Paragraph(text).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA)).setFontSize(12));
+            document.add(ls);
 
-                    // Agregar una línea horizontal después del título
-                    contentStream.moveTo(50, 740); // Posición de inicio de la línea
-                    contentStream.lineTo(page.getMediaBox().getWidth() - 50, 740); // Posición de fin de la línea
-                    contentStream.stroke(); // Dibujar la línea
+            document.add(new Paragraph("\n")); // Párrafo vacío
 
-                    contentStream.setFont(PDType1Font.HELVETICA, 12);
-
-                    // Calcular el índice de inicio y fin de las líneas para esta página
-                    int startLineIndex = pageIndex * LINES_PER_PAGE;
-                    int endLineIndex = Math.min(startLineIndex + LINES_PER_PAGE, lines.length);
-
-                    float y = 700; // Posición vertical inicial
-                    for (int i = startLineIndex; i < endLineIndex; i++) {
-                        String line = lines[i];
-                        contentStream.beginText();
-                        contentStream.newLineAtOffset(50, y); // Posición horizontal: 50, vertical: y
-                        contentStream.showText(line);
-                        contentStream.endText();
-                        y -= 12; // Espacio vertical entre líneas
-                    }
-
-                    // Agregar una línea horizontal al final del resumen
-                    contentStream.moveTo(50, y); // Posición de inicio de la línea
-                    contentStream.lineTo(page.getMediaBox().getWidth() - 50, y); // Posición de fin de la línea
-                    contentStream.stroke(); // Dibujar la línea
-                }
+            if (signatureImagePath != null && !signatureImagePath.isEmpty()) {
+                Image signatureImage = new Image(ImageDataFactory.create(signatureImagePath))
+                        .setWidth(200)
+                        .setHorizontalAlignment(HorizontalAlignment.CENTER);
+                document.add(signatureImage);
             }
 
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            document.save(outputStream);
-            return outputStream.toByteArray();
-        }
-    }
+            document.showTextAligned(Integer.toString(pdf.getNumberOfPages()), pdf.getDefaultPageSize().getWidth() / 2,
+                    20, TextAlignment.LEFT);
 
-    private List<String> splitLine(String line, float maxWidth) throws IOException {
-        List<String> subLines = new ArrayList<>();
-        StringBuilder currentLine = new StringBuilder();
-
-        // Dividir la línea en palabras y ajustarlas para que se ajusten dentro del ancho máximo
-        String[] words = line.split("\\s+");
-        for (String word : words) {
-            float currentWidth = PDType1Font.HELVETICA.getStringWidth(currentLine.toString() + word) / 1000 * 12;
-            if (currentWidth <= maxWidth) {
-                // Si la palabra cabe dentro de la línea actual, agregarla
-                currentLine.append(word).append(" ");
-            } else {
-                // Si la palabra excede el ancho máximo, agregar la línea actual a la lista y comenzar una nueva línea
-                subLines.add(currentLine.toString());
-                currentLine = new StringBuilder(word + " ");
-            }
         }
 
-        // Agregar la última línea al resultado
-        subLines.add(currentLine.toString());
-
-        return subLines;
+        return outputStream.toByteArray();
     }
+
 }

@@ -176,7 +176,8 @@ public class BoeService {
                 String to = usuario.getEmail();
                 String subject = "Nuevo Boletín Oficial disponible";
                 String text = "Estimado " + usuario.getUsername() + ",\n\n Para Leer el Boe de hoy en profundidad, acceda a la pagina web:\nhttps://www.boe.es/boe/dias/"+fechaFormateada +"\n\n"+resumen;
-                emailSender.sendEmailWithPdfAttachment(to, subject, text);
+                String signatureImagePath = "src/main/resources/boe.png";
+                emailSender.sendEmailWithPdfAttachment(to, subject, text,signatureImagePath);
 
                 System.out.println("Correo enviado a: " + usuario.getEmail());
             }
