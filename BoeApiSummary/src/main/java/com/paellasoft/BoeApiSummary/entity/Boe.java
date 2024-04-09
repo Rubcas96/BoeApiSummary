@@ -42,11 +42,11 @@ public class Boe {
         this.id = id;
     }
 
-    public String getContenidoOriginal() {
+    public String gettituloOriginal() {
         return tituloOriginal;
     }
 
-    public void setContenidoOriginal(String contenidoOriginal) {
+    public void settituloOriginal(String contenidoOriginal) {
         this.tituloOriginal = contenidoOriginal;
     }
 

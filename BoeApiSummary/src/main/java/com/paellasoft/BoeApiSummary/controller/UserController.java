@@ -1,6 +1,7 @@
 package com.paellasoft.BoeApiSummary.controller;
 
 
+import com.paellasoft.BoeApiSummary.dto.UserDTO;
 import com.paellasoft.BoeApiSummary.entity.User;
 import com.paellasoft.BoeApiSummary.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -75,6 +78,19 @@ public class UserController {
                     .body("Error al darse de baja el usuario del Boletín Oficial del Estado.");
         }
     }
+
+    @GetMapping("/user/dto/{id}")
+    public ResponseEntity<UserDTO> obtenerUserPorId(@PathVariable Long id) {
+        Optional<User> optionalUser = Optional.ofNullable(userService.getUserById(id));
+        if (optionalUser.isPresent()) {
+            User user = optionalUser.get();
+            UserDTO userDTO = UserDTO.fromEntity(user);
+            return ResponseEntity.ok(userDTO);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
 
     @DeleteMapping("/user/delete")
     public void deleteUser(@RequestParam Long userId){

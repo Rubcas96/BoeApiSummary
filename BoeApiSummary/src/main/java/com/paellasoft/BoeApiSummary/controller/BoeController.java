@@ -3,6 +3,8 @@ package com.paellasoft.BoeApiSummary.controller;
 
 import com.paellasoft.BoeApiSummary.chatGpt.ChatGptRequest;
 import com.paellasoft.BoeApiSummary.chatGpt.ChatGptResponse;
+import com.paellasoft.BoeApiSummary.dto.BoeDTO;
+import com.paellasoft.BoeApiSummary.entity.Boe;
 import com.paellasoft.BoeApiSummary.service.BoeService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +64,17 @@ public class BoeController {
                     .body("Error al enviar los resúmenes de boletines no suscritos: " + e.getMessage());
         }
     }
+
+    @GetMapping("/boe/dto/{id}")
+    public ResponseEntity<BoeDTO> obtenerBoePorId(@PathVariable Long id) {
+        Boe boe = boeService.enviarDto(id);
+        BoeDTO dto = BoeDTO.fromEntity(boe);
+        if (dto != null) {
+            return ResponseEntity.ok(dto);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
 
     @DeleteMapping("/boe/delete/all")
     public void  DeleteALLBoes(){

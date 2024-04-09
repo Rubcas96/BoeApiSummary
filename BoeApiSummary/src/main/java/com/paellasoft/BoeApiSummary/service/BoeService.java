@@ -131,7 +131,7 @@ public class BoeService {
             String fragmentoTextoOriginal = textoPuro.substring(8, 21);
 
             // Verificar si el fragmento de texto original coincide con el del último Boletín registrado
-            if (fragmentoTextoOriginal.equals(ultimoBoe.getContenidoOriginal())) {
+            if (fragmentoTextoOriginal.equals(ultimoBoe.gettituloOriginal())) {
                 System.out.println("Este Boletín Oficial ya está registrado.");
             } else {
                 // Registrar el nuevo Boletín Oficial
@@ -154,7 +154,7 @@ public class BoeService {
 
         // Crear el objeto Boe
         Boe boe = new Boe();
-        boe.setContenidoOriginal(fragmentoTextoOriginal);
+        boe.settituloOriginal(fragmentoTextoOriginal);
         boe.setContenidoResumido(resumen);
         boe.setFechaBoe(fechaBoe);
 
@@ -307,10 +307,20 @@ public class BoeService {
         }
     }
 
+    public Boe enviarDto(Long id) {
+
+        Boe boe = boeRepository.getById(id);
+        return boe;
+
+
+
+    }
+
+
 public void deleteAllBoes(){
         boeRepository.deleteAll();
 }
 
-    }
+}
 
 
